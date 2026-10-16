@@ -57,48 +57,53 @@ class Dataset:
     def __len__(self):
         return self.size
 
-
+Empty = object
 class LearningMachine:
     def __init__(
         self,
-        device: str,
-        train_dataset_path: str,
-        valid_dataset_path: str,
-        train_trsf,
-        val_trsf,
+        device="mps",
+        new=False,
+        train_dataset_path=Empty,
+        valid_dataset_path=Empty,
+        train_trsf=Empty,
+        val_trsf=Empty,
         batch_size=32,
+        path=Empty
     ):
-        self.batch_size = batch_size
         self.device = torch.device(device)
-        self.model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        self.model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)
         self.model = self.model.to(self.device)
-        in_features = self.model.fc.in_features
-        self.model.fc = nn.Sequential(
-            nn.Linear(in_features, 3),
-        )
-        self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=1e-4, weight_decay=1e-4
-        )
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer, T_max=20
-        )
-        self.train_dataset = ImageFolder(train_dataset_path, train_trsf)
-        self.valid_dataset = ImageFolder(valid_dataset_path, val_trsf)
-        self.train_data_loader = DataLoader(
-            self.train_dataset, self.batch_size, shuffle=True
-        )
-        self.valid_data_loader = DataLoader(
-            self.valid_dataset, self.batch_size, shuffle=False
-        )
-        print(self.train_dataset.classes, self.valid_dataset.classes)
+        in_features = self.model.classifier[1].in_features
+        self.model.classifier[1] = nn.Linear(in_features, 2)
+        
+        if new is True:
+            self.batch_size = batch_size
+            self.criterion = nn.CrossEntropyLoss()
+            self.optimizer = torch.optim.AdamW(
+                self.model.parameters(), lr=1e-4, weight_decay=1e-4
+            )
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer, T_max=20
+            )
+            self.train_dataset = ImageFolder(train_dataset_path, train_trsf)
+            self.valid_dataset = ImageFolder(valid_dataset_path, val_trsf)
+            self.train_data_loader = DataLoader(
+                self.train_dataset, self.batch_size, shuffle=True
+            )
+            self.valid_data_loader = DataLoader(
+                self.valid_dataset, self.batch_size, shuffle=False
+            )
+            print("Initialising new model")
+        else:
+            self.model.load_state_dict(torch.load(path, map_location=device))
+            self.val_trsf = val_trsf
 
     def train(self):
         self.model.to(self.device)
         self.model.train()
         running = 0
         for imgs, results in tqdm(self.train_data_loader):
-            imgs, results = imgs.to(self.device), results.to(self.device).unsqueeze(1)
+            imgs, results = imgs.to(self.device), results.to(self.device)
             self.optimizer.zero_grad()
             preds = self.model(imgs)
             loss = self.criterion(preds, results)
@@ -111,42 +116,51 @@ class LearningMachine:
         self.model.to(self.device)
         with torch.no_grad():
             self.model.eval()
-            running, mae = 0.0, 0.0
+            correct, mae = 0.0, 0.0
             for imgs, targets in self.valid_data_loader:
                 imgs, targets = (
                     imgs.to(self.device),
-                    targets.to(self.device).unsqueeze(1),
+                    targets.to(self.device),
                 )
-                preds = self.model(imgs)
-                running += self.criterion(preds, targets).item() * imgs.size(0)
+                logits = self.model(imgs)
+                preds = logits.argmax(dim=1)
                 mae += (preds - targets).abs().sum().item()
-            n = len(self.valid_dataset)
-            return running / n, mae / n
+                correct += (preds == targets).sum().item()
 
+        n = len(self.valid_dataset)
+        return mae / n, correct / n
 
-def main(d="cuda"):
+    def predict(self, filename):
+        self.model.to(self.device)
+        self.model.eval()
+        img = Image.open(filename).convert("RGB")
+        x = self.val_trsf(img).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            pred = self.model(x)
+        return pred[0].tolist()
+
+train_tfms = transforms.Compose([
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)), # Случайный зум и обрезка
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(15), # Легкие наклоны
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2), 
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+val_tfms = transforms.Compose([
+    transforms.Resize(256),           # Увеличиваем меньшую сторону до 256 с сохранением пропорций
+    transforms.CenterCrop(224),       # Ровно вырезаем квадрат 224x224 из центра
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+def main(d="mps"):
     torch.set_default_dtype(torch.float32)
-    train_tfms = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.ColorJitter(0.2, 0.2, 0.2),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
-    val_tfms = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
-    csvdata = CsvDatasetManager("dataset.csv")
+   
+    # csvdata = CsvDatasetManager("dataset.csv")
     device = torch.device(d)
-    train_dataset_path = "dataset/training"
-    valid_dataset_path = "dataset/validation"
-    batch_size = 32
+    train_dataset_path = "dataset/training/"
+    valid_dataset_path = "dataset/validation/"
+    batch_size = 16
     Lm = LearningMachine(
         device,
         train_dataset_path,
@@ -155,32 +169,51 @@ def main(d="cuda"):
         val_tfms,
         batch_size=batch_size,
     )
-    return
-    epochs = 50
-    best_val_mae = float("inf")
+    
+    epochs = 5
+    best_eval_acc = 0
     best_model_path = "best_model.pt"
     last_model_path = "last_model.pt"
     for epoch in range(epochs):
         train_loss = Lm.train()
-        eval_loss, eval_mae_normalized = Lm.evaluate()
-        eval_mae_real = eval_mae_normalized * 4
+        eval_loss, eval_accuracy = Lm.evaluate()
         Lm.scheduler.step()
 
         print(
-            f"EPOCH: {epoch} | train MSE {train_loss} | "
-            f"eval MSE {eval_loss} | eval MAE {eval_mae_real}"
+            f"EPOCH: {epoch} | train loss {train_loss} | "
+            f"eval loss {eval_loss}, eval acc {eval_accuracy}"
         )
 
-        if eval_mae_real < best_val_mae:
-            best_val_mae = eval_mae_real
+        if eval_accuracy > best_eval_acc:
+            best_eval_acc = eval_accuracy
             torch.save(Lm.model.state_dict(), best_model_path)
             print(
-                f"saved best model (val MSE={eval_loss:.4f}  val MAE={eval_mae_real:.3f})"
+                f"saved best model (val loss={eval_loss:.4f}  val acc={eval_accuracy:.3f})"
             )
 
     torch.save(Lm.model.state_dict(), last_model_path)
-    print(f"saved last model (train MSE={train_loss:.4f} val MAE={eval_mae_real:.4f})")
+    print(f"saved last model (train MSE={train_loss:.4f} val acc={eval_accuracy:.4f})")
+
+
+# def predict(model, val_tmfs, image):
+#     model = models.resnet18(weights=None)
+#     model.fc = nn.Linear(model.fc.in_features, 2)
+#     model.load_state_dict(torch.load("best_model.pt", map_location="mps"))
+#     model.eval()
+#     img = Image.open(image)
+#     x = val_tmfs(img).unsqueeze(0)
+#     with torch.no_grad():
+#         pred = model(x).argmax(1).item()
+#         print(pred)
+
+
 
 
 if __name__ == "__main__":
-    main(d="mps")
+    lm = LearningMachine("mps", False, val_trsf=val_tfms, path="last_model.pt")
+    print(lm.predict("i.webp"))
+    # main(d="mps")
+
+
+
+
