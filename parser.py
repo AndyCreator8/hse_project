@@ -80,9 +80,6 @@ while count < 5000:
 
             except Exception as e:
                 print(f"Ошибка при скачивании {image_url}: {e}")
-            
-        
-
         print(count)
     else:
         print(f"Ошибка при запросе: {response.status_code}")
