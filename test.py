@@ -4,4 +4,4 @@ import json
 
 import os
 
-print(os.listdir("images"))
+print(set(os.listdir("images")))
