@@ -43,36 +43,61 @@ headers = {
 }
 
 import os
-names = set(os.listdir("images"))
-after = ""
-count = 0
-while count < 5000:
-    time.sleep(1)
-    if after != "":
-        response = requests.get(f"https://www.reddit.com/r/hardimages2/top.json?t=all&limit=100&after={after}", cookies=cookies, headers=headers)
-    else:
-        response = requests.get(f"https://www.reddit.com/r/hardimages2/top.json?t=all&limit=100", cookies=cookies, headers=headers)
-    if response.status_code == 200:
-        data = response.json()
-        after = data["data"]["after"]
-        names = set(os.listdir("images"))
-        for child in data["data"]["children"]:
-            try:
-                image_url = child["data"]["url_overridden_by_dest"]
-            except KeyError:
-                print(f"Не нашел ключ url_overridden_by_dest в {response.url}")
-            if image_url.split("/")[-1] in names:
-                print(f"{image_url.split("/")[-1]} уже был")
-                continue
-            try:
-                time.sleep(1)
-                img_response = requests.get(image_url)
 
-                if img_response.status_code == 200:
-                    filename = image_url.split("/")[-1]
-                    with open(f"images/{filename}", "wb") as file:
-                        file.write(img_response.content)
+def parse_site(url, path, after=""):
+    names = set(os.listdir(path))
+    last_after = after
+    count = 0
+    try:
+        while count < 5000:
+            print('a')
+            time.sleep(1)
+            if after != "":
+                response = requests.get(f"https://www.reddit.com/r/{url}/top.json?t=all&limit=100&after={after}", cookies=cookies, headers=headers)
+            else:
+                response = requests.get(f"https://www.reddit.com/r/{url}/top.json?t=all&limit=100", cookies=cookies, headers=headers)
+            print(response.url, response.status_code)
+            if response.status_code == 200:
+                data = response.json()
+                after = data["data"]["after"]
+                names = set(os.listdir(path))
+                for child in data["data"]["children"]:
+                    try:
+                        image_url = child["data"]["url_overridden_by_dest"]
+                        if not (image_url.endswith(("jpeg", "jpg", "png", "webp"))):
+                            print("Неверный формат файла")
+                            continue
+                    except KeyError:
+                        print(f"Не нашел ключ url_overridden_by_dest в {response.url}")
+                    except Exception as ex:
+                        print(ex)
+                    if image_url.split("/")[-1] in names:
+                        print(f"{image_url.split("/")[-1]} уже был")
+                    try:
+                        time.sleep(1)
+                        img_response = requests.get(image_url)
+                        if img_response.status_code == 200:
+                            filename = image_url.split("/")[-1]
+                            with open(f"{path}/{filename}", "wb") as file:
+                                file.write(img_response.content)
+                            print(f"Успешно: {image_url}")
+                            print(after)
+                            count += 1
+                        else:
+                            print(f"Пропущено (сервер вернул не картинку): {image_url}")
+                    except Exception as e:
+                        print(f"Ошибка при скачивании {image_url}: {e}")
+                print(count)
+            else:
+                print(f"Ошибка при запросе: {response.status_code}")
+        last_after = after
+    except Exception as ex:
+        raise ex
+    finally:
+        with open("last_after.txt", 'w', encoding="utf8") as file:
+            file.write(last_after)
 
+<<<<<<< HEAD
                     print(f"Успешно: {image_url}")
                     count += 1
                 else:
@@ -83,3 +108,6 @@ while count < 5000:
         print(count)
     else:
         print(f"Ошибка при запросе: {response.status_code}")
+=======
+parse_site("trollface", "high")
+>>>>>>> 9d212ebdca9e9f5bc325d76c3c9d40796c27d3b5
