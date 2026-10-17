@@ -59,9 +59,11 @@ def parse_site(url, path, after=""):
             print(response.url, response.status_code)
             if response.status_code == 200:
                 data = response.json()
-                names = set(os.listdir(path))
+                names = set(os.listdir(path)) 
                 after = data["data"].get("after")
                 children = data["data"].get("children", None)
+                with open("aa.json", 'w', encoding="utf8") as file:
+                    json.dump(data, file)
                 if children is None:
                     print("DONE")
                     break
@@ -70,12 +72,12 @@ def parse_site(url, path, after=""):
                         image_url = child["data"]["url_overridden_by_dest"]
                         if not (image_url.endswith(("jpeg", "jpg", "png", "webp"))):
                             print("Неверный формат файла")
-                            time.sleep(1)
+                            time.sleep(0.5)
                             continue
                         if image_url.split("/")[-1] in names:
                             print(f"{image_url.split("/")[-1]} уже был")
-                        img_response = requests.get(image_url)
-                        time.sleep(1)
+                        img_response = requests.get(image_url, cookies=cookies, headers=headers)
+                        time.sleep(0.5)
                         if img_response.status_code == 200:
                             filename = image_url.split("/")[-1]
                             with open(f"{path}/{filename}", "wb") as file:
