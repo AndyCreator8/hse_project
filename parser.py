@@ -43,6 +43,15 @@ headers = {
     # 'cookie': 'csv=2; edgebucket=EccAQ9SaD0Uu7lUl5z; loid=000000000m7meb3bj5.2.1697864792065.Z0FBQUFBQnA0OHVORWN0QnNZUjlHRmxjM3N5THRsN2ZiNURlMVdXY3ZwclNmYTVjYVVEVmtvMS1OOGI2RlpRX1FmNmJacnJnRnRqTWhjV2NUU2t4UnVzWkFsSERKUVVlVmcwdXV3X1FBTFNnaWx6eWpicWRZMHNLajNnbDFzNHNGVEpUSlJFbF9qWlc; t2_m7meb3bj5_recentclicks3=t3_1dhho5x; reddit_supported_media_codecs=video/avc%2Cvideo/vp9; eu_cookie_opted=1; ads_cookie=1; reddit_session=eyJhbGciOiJSUzI1NiIsImtpZCI6IlNIQTI1NjpsVFdYNlFVUEloWktaRG1rR0pVd1gvdWNFK01BSjBYRE12RU1kNzVxTXQ4IiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0Ml9tN21lYjNiajUiLCJleHAiOjE4MDcxMTc4NjguNjUwNTExLCJpYXQiOjE3OTE0Nzk0NjguNjUwNTExLCJqdGkiOiJua3pDaXF2VUc0ZS1paDVOMFlhQnRFa2R3Tllub3ciLCJhdCI6MSwiY2lkIjoiY29va2llIiwibGNhIjoxNjk3ODY0NzkyMDY1LCJzY3AiOiJlSndBQWdEOV8xdGRBd0FCRlFDNSIsImZsbyI6MywiYW1yIjpbInNzbyJdfQ.Iaklofr9JP-dYg4mjgdZZDT3gmDgCh8YqdJlMAmEe1HbusviHddM5YMjS0_HAzF9Vz0BOWQatAvL5R8hJ-4qkwlbBKjInC8TCNaNxRfWXPsgRl5fkUQ5ys_VBBOdqfRzGzvS7d0kAwgIIc31yt3zld5uDvgjUPG07_SH8X9bNmDO0SsV6rD-kkk_lB88eTPIm_mduliuAWrvy9mf68663r7s2zH3xjNpZEERtYB80YnFRwT2qW866GgW9dw3tOAjRHLSzsocv2Nl6kO1E5bK6fRc59uYquep6ENReT_mHtFzTZPr9Q4lPnwiuXEcklEiUZu5qa71ggXLqXeUhdTEMg; csrf_token=e3a8bed97ea3fb2bd76c5d111c3d2406; token_v2=eyJhbGciOiJSUzI1NiIsImtpZCI6IlNIQTI1NjpzS3dsMnlsV0VtMjVmcXhwTU40cWY4MXE2OWFFdWFyMnpLMUdhVGxjdWNZIiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL3d3dy5yZWRkaXQuY29tIiwic3ViIjoidXNlciIsImV4cCI6MTc5MjI2NDMxMS43Mzg3NDMsImlhdCI6MTc5MjE3NzkxMS43Mzg3NDMsImp0aSI6IkdqNDV0R0NyNTRjaENzTGlpeC1ZaVlxNmlVOEJlUSIsImNpZCI6IjBSLVdBTWh1b28tTXlRIiwibGlkIjoidDJfbTdtZWIzYmo1IiwiYWlkIjoidDJfbTdtZWIzYmo1IiwiYXQiOjEsImxjYSI6MTY5Nzg2NDc5MjA2NSwic2NwIjoiZUp4a2tWSE8zREFJaE9fQ3MwX1FxMVJWNWRoa0Z6VTJFZUNzOXZZVldaT045TDhOOEdVTWs5LVFxMklsZy1SS01GZElnQzNUQmdsMkl1LVh3cU9mUk84OGVzR0czUlFTRk1GYTZaVFRZOTB5Q1NSNGtockxHeEpReFc1a0xqYzZzT1dlSHdnSkd0ZkNmYVhIcFUxb0djYmlkbzFyV0RXdUcwOXE3dFc0ZHJicHd2YkUtR1pudFNrVnRfV2pUUEs2VXZrVUxfcm5ON1czanVXN19TNTBaTU9HcXZtQjNwbEpDTzRzZnJybXc5OVRrMUZzQ0ZhMTkzYVNPcFoyM3E1ajBTSzBPSGQ4MXZQWFpqSXVwMmw1WnZ0MTF5OGh3MXVlMXpEcUFHYXNNWTh5eHBGMXpLODZnTVlWSlJ0TEVOOUdJRmN1Zl8yWFlMODJfVG00ZmVLSDcwYmM5WWJmbW9GNkxrR2MtaVZrQ0hfLUR3QVExZVRSIiwicmNpZCI6IkhfejRXQ3VOQ1pPU3llSWlPQ0lPeDRLZlFQcHZiZDdtekNpVm5zeGNJREEiLCJmbG8iOjJ9.jEHCemBmDEk86BbOxKLqt6T5zXq1n790wGTfSwQQLJz5g1EKUO6QHWww9PRAV-EmPPmeo4o0WdnoAAEYbu8ceKyiUg_9066ymBzqPBVdypVo_aexrI8rsK6FMgzw2-zVwsotyAvV_Kd_KL61tYRbEorP-Ooe9wP7LIelzebL8FjFywZD9GwRWXNa9Tyjl0OvOiXwbzWvgUX8E5-rvmsQOYm2YPNd44VecHFbSri80QFE0P4uDPameG5XuAZr51ewovdA2kmLVNd9T0tH7_0TLyuFPD_Gl4MVEeaySpTddS0owHP3i0koQ4nOuTUMOZv_Xc1SzPCWbNf3-e-srzBS0g; seeker_session=true; reddit_chat_view=closed; subreddit_sort=AcD3tRM45bAC; g_state={"i_l":0,"i_ll":1792178971682,"i_e":{"enable_itp_optimization":24},"i_et":1792178971682,"i_b":"qkjhMM+N3nl+xCojJ9LdvvHTW3aG+lE+UaIrlHcGhhY"}; session_tracker=gclkbgnakkfhnflllc.0.1792178972819.Z0FBQUFBQnEwbnNjcEJxR3gtU3k5OFk0d0F5SU9mc1NMeVY4V0l2dFRQVVFuRG5CQTE3TkRaMTBsYThhVDFUZlZJcVZfVXo3UHRMMks0WkptMU1vV2JxRHR5YTN2S05Eamh4TTFCbW5HV0JTVWFaS2haUUFrRXM1blJhQ2JueTNuN2g4VF9pYWdmVGM',
 }
 
+img_headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+    "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://www.reddit.com/",
+    "Connection": "keep-alive"
+}
+
 import os
 
 def parse_site(url, path, after=""):
@@ -76,15 +85,20 @@ def parse_site(url, path, after=""):
                             continue
                         if image_url.split("/")[-1] in names:
                             print(f"{image_url.split("/")[-1]} уже был")
-                        img_response = requests.get(image_url, cookies=cookies, headers=headers)
+                            continue
+                        img_response = requests.get(image_url, headers=img_headers)
                         time.sleep(0.5)
                         if img_response.status_code == 200:
-                            filename = image_url.split("/")[-1]
-                            with open(f"{path}/{filename}", "wb") as file:
-                                file.write(img_response.content)
-                            print(f"Успешно: {image_url}")
-                            print(after)
-                            count += 1
+                            content = img_response.headers.get("Content-Type", "")
+                            if "text/html" in content:
+                                print(content)
+                            else:
+                                filename = image_url.split("/")[-1]
+                                with open(f"{path}/{filename}", "wb") as file:
+                                    file.write(img_response.content)
+                                print(f"Успешно: {image_url}")
+                                print(after)
+                                count += 1
                         else:
                             print(f"Error. Status code {img_response.status_code} for {image_url}")
                     except Exception as ex:
@@ -101,7 +115,7 @@ def parse_site(url, path, after=""):
             file.write(last_after)
         with open("aa.json", 'w', encoding="utf8") as file:
             json.dump(data, file)
-#Пишет ошибку Error. Status code 429 for http://i.imgur.com/DG9RFXb.jpg
+
 
 parse_site("terriblepics", "low")
 

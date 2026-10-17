@@ -62,7 +62,7 @@ class LearningMachine:
     def __init__(
         self,
         device="mps",
-        new=False,
+        new=True,
         train_dataset_path=Empty,
         valid_dataset_path=Empty,
         train_trsf=Empty,
@@ -71,14 +71,17 @@ class LearningMachine:
         path=Empty
     ):
         self.device = torch.device(device)
-        self.model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)
+        self.model = models.RegNet(weights=models.ConvNeXt_Small_Weights.IMAGENET1K_V1)
         self.model = self.model.to(self.device)
-        in_features = self.model.classifier[1].in_features
-        self.model.classifier[1] = nn.Linear(in_features, 2)
+        in_features = self.model.classifier[2].in_features
+        self.model.classifier[2] = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(in_features, 2)
+        )
         
         if new is True:
             self.batch_size = batch_size
-            self.criterion = nn.CrossEntropyLoss()
+            self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
             self.optimizer = torch.optim.AdamW(
                 self.model.parameters(), lr=1e-4, weight_decay=1e-4
             )
@@ -88,10 +91,10 @@ class LearningMachine:
             self.train_dataset = ImageFolder(train_dataset_path, train_trsf)
             self.valid_dataset = ImageFolder(valid_dataset_path, val_trsf)
             self.train_data_loader = DataLoader(
-                self.train_dataset, self.batch_size, shuffle=True
+                self.train_dataset, self.batch_size, shuffle=True, num_workers=4, pin_memory=True
             )
             self.valid_data_loader = DataLoader(
-                self.valid_dataset, self.batch_size, shuffle=False
+                self.valid_dataset, self.batch_size, shuffle=False, num_workers=4, pin_memory=True
             )
             print("Initialising new model")
         else:
@@ -160,9 +163,10 @@ def main(d="mps"):
     device = torch.device(d)
     train_dataset_path = "dataset/training/"
     valid_dataset_path = "dataset/validation/"
-    batch_size = 16
+    batch_size = 32
     Lm = LearningMachine(
-        device,
+        d,
+        True,
         train_dataset_path,
         valid_dataset_path,
         train_tfms,
@@ -170,7 +174,7 @@ def main(d="mps"):
         batch_size=batch_size,
     )
     
-    epochs = 5
+    epochs = 100
     best_eval_acc = 0
     best_model_path = "best_model.pt"
     last_model_path = "last_model.pt"
@@ -210,8 +214,7 @@ def main(d="mps"):
 
 
 if __name__ == "__main__":
-    lm = LearningMachine("mps", False, val_trsf=val_tfms, path="last_model.pt")
-    print(lm.predict("i.webp"))
+    main(d="cuda")
     # main(d="mps")
 
 
