@@ -71,10 +71,10 @@ class LearningMachine:
         path=Empty
     ):
         self.device = torch.device(device)
-        self.model = models.RegNet(weights=models.ConvNeXt_Small_Weights.IMAGENET1K_V1)
+        self.model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
         self.model = self.model.to(self.device)
-        in_features = self.model.classifier[2].in_features
-        self.model.classifier[2] = nn.Sequential(
+        in_features = self.model.fc.in_features
+        self.model.fc = nn.Sequential(
             nn.Dropout(p=0.5),
             nn.Linear(in_features, 2)
         )
@@ -174,7 +174,7 @@ def main(d="mps"):
         batch_size=batch_size,
     )
     
-    epochs = 100
+    epochs = 20
     best_eval_acc = 0
     best_model_path = "best_model.pt"
     last_model_path = "last_model.pt"
