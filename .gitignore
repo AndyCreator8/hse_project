@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+.DS_Store
+photos/
+dataset/
+images/
+low/
+junk/
+high/
+bot_friend.py
+best_model.pt

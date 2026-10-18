@@ -1,45 +1,72 @@
+
+import os
+from pathlib import Path
+from uuid import uuid4
 import asyncio
-import logging
-import os 
-from aiogram import Bot, Dispatcher, F 
-from aiogram.types import Message 
-from aiogram.filters import Command
-from PIL import Image
-from LM import LearningMachine, val_tfms
-BOT_TOKEN = open("TOKEN").readline()
-SAVE_DIR = "photos_folder"
+from model import analyze_photo
+from dotenv import load_dotenv
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
 
 
-dp = Dispatcher()
+load_dotenv()
+TOKEN = os.getenv("BOT_TOKEN")
+PHOTO_DIR = Path("photos")
+PHOTO_DIR.mkdir(exist_ok=True)
 
-@dp.message(Command("start"))
-async def cmd_start(message: Message):
-    await message.answer("Кинь фото с максиальной аурой")
 
 
-@dp.message(F.photo)
-async def handle_photo(message: Message, bot): # Aiogram возвращает массив фото разных размеров. [-1] — самое высокое качество.
-    photo_data = message.photo[-1]
-    file_name = f"{message.from_user.id}_{message.photo[-1].file_id}.jpg"
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    name = update.effective_user.first_name
+
+    await update.message.reply_text(
+        f"Привет, {name}! 👋\n\n"
+        "Я бот для оценки ауры фотографий.\n"
+        "Отправь мне фотографию, и я её проанализирую!"
+    )
+
+
+
+async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📸 Фотография получена!\n"
+        "🔍 Анализируем ауру..."
+    )
+
+    picture = update.message.photo[-1]
+    file = await picture.get_file()
+
+    filename = PHOTO_DIR / f"{uuid4().hex}.jpg"
+    await file.download_to_drive(filename)
+
     try:
-        print("message")
-        await bot.download(photo_data, destination=f"junk/{file_name}")
-        Lm = LearningMachine("mps", False, val_trsf=val_tfms, path="last_model.pt")
-        x = Lm.predict(f"junk/{file_name}")
-        print(x)
-        maxarg = max(x)
-        if x.index(maxarg) == 1:
-            maxarg *= -1
-        maxarg *= 1000
-        await message.answer(f"AURA {maxarg}")
-    except Exception as ex:
-        print(f"Не удалось обработать {ex}")
+        result = await asyncio.to_thread(analyze_photo, filename)
 
-async def main():
-    os.makedirs(SAVE_DIR, exist_ok=True)
-    bot = Bot(token=BOT_TOKEN)
-    logging.basicConfig(level=logging.INFO)
-    await dp.start_polling(bot)
+        await update.message.reply_text(
+            f"✨ Результат анализа ауры: {round(result)}"
+        )
 
-if __name__ == "__main__": 
-    asyncio.run(main())
+    except Exception:
+        await update.message.reply_text(
+            "❌ Не удалось проанализировать фотографию."
+        )
+        raise
+
+
+
+if not TOKEN:
+    raise RuntimeError("Не найден BOT_TOKEN в файле .env")
+
+app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+
+app.add_handler(MessageHandler(filters.PHOTO, photo))
+
+app.run_polling()

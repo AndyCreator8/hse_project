@@ -6,6 +6,7 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
+
 import torch.optim
 import torch
 import torch.nn as nn
@@ -140,7 +141,8 @@ class LearningMachine:
         x = self.val_trsf(img).unsqueeze(0).to(self.device)
         with torch.no_grad():
             pred = self.model(x)
-        return pred[0].tolist()
+            variants = nn.functional.softmax(pred, dim=1)
+        return variants[0].tolist()
 
 train_tfms = transforms.Compose([
     transforms.RandomResizedCrop(224, scale=(0.8, 1.0)), # Случайный зум и обрезка
