@@ -76,7 +76,7 @@ class LearningMachine:
         self.model = self.model.to(self.device)
         in_features = self.model.fc.in_features
         self.model.fc = nn.Sequential(
-            nn.Dropout(p=0.5),
+            nn.Dropout(p=0.3),
             nn.Linear(in_features, 2)
         )
         
@@ -87,7 +87,7 @@ class LearningMachine:
                 self.model.parameters(), lr=1e-4, weight_decay=1e-4
             )
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                self.optimizer, T_max=20
+                self.optimizer, T_max=40
             )
             self.train_dataset = ImageFolder(train_dataset_path, train_trsf)
             self.valid_dataset = ImageFolder(valid_dataset_path, val_trsf)
@@ -147,8 +147,6 @@ class LearningMachine:
 train_tfms = transforms.Compose([
     transforms.RandomResizedCrop(224, scale=(0.8, 1.0)), # Случайный зум и обрезка
     transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(15), # Легкие наклоны
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2), 
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
@@ -158,7 +156,7 @@ val_tfms = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
-def main(d="mps"):
+def main(d="cuda"):
     torch.set_default_dtype(torch.float32)
    
     # csvdata = CsvDatasetManager("dataset.csv")
@@ -176,7 +174,7 @@ def main(d="mps"):
         batch_size=batch_size,
     )
     
-    epochs = 20
+    epochs = 40
     best_eval_acc = 0
     best_model_path = "best_model.pt"
     last_model_path = "last_model.pt"

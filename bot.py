@@ -49,7 +49,9 @@ async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await asyncio.to_thread(analyze_photo, filename)
 
         await update.message.reply_text(
+
             f"✨ Результат анализа ауры: {round(result)}"
+
         )
 
     except Exception:
