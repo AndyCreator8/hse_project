@@ -81,6 +81,11 @@ class LearningMachine:
         )
         
         if new is True:
+            # заморозка backbone
+            for p in self.model.parameters():
+                p.requires_grad = False
+            for p in self.model.fc.parameters():
+                p.requires_grad = True
             self.batch_size = batch_size
             self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
             self.optimizer = torch.optim.AdamW(
@@ -117,22 +122,16 @@ class LearningMachine:
         return running / len(self.train_dataset)
 
     def evaluate(self):
-        self.model.to(self.device)
+        self.model.eval()
+        total_loss, correct = 0.0, 0
         with torch.no_grad():
-            self.model.eval()
-            correct, mae = 0.0, 0.0
-            for imgs, targets in self.valid_data_loader:
-                imgs, targets = (
-                    imgs.to(self.device),
-                    targets.to(self.device),
-                )
+            for imgs, t in self.valid_data_loader:
+                imgs, t = imgs.to(self.device), t.to(self.device)
                 logits = self.model(imgs)
-                preds = logits.argmax(dim=1)
-                mae += (preds - targets).abs().sum().item()
-                correct += (preds == targets).sum().item()
-
+                total_loss += self.criterion(logits, t).item() * imgs.size(0)
+                correct += (logits.argmax(1) == t).sum().item()
         n = len(self.valid_dataset)
-        return mae / n, correct / n
+        return total_loss / n, correct / n
 
     def predict(self, filename):
         self.model.to(self.device)
@@ -143,12 +142,20 @@ class LearningMachine:
             pred = self.model(x)
             variants = nn.functional.softmax(pred, dim=1)
         return variants[0].tolist()
+    
+    def unfreeze(self, from_layer=4):
+        layers = [self.model.layer1, self.model.layer2, self.model.layer3, self.model.layer4]
+        for layer in layers[-from_layer:]:
+            for p in layer.parameters():
+                p.requires_grad = True
 
 train_tfms = transforms.Compose([
-    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)), # Случайный зум и обрезка
+    transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),        # сильнее
     transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),       # ← верни
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    transforms.RandomErasing(p=0.25, scale=(0.02, 0.15)),       # ← добавить
 ])
 val_tfms = transforms.Compose([
     transforms.Resize(256),           # Увеличиваем меньшую сторону до 256 с сохранением пропорций
@@ -175,10 +182,14 @@ def main(d="cuda"):
     )
     
     epochs = 40
-    best_eval_acc = 0
-    best_model_path = "best_model.pt"
+    best_eval_loss = float("inf")
+    best_model_path = "models/best_model.pt"
     last_model_path = "last_model.pt"
     for epoch in range(epochs):
+        if epoch == 3:
+            Lm.unfreeze(from_layer=2)   # разморозить layer3, layer4
+            Lm.optimizer = torch.optim.AdamW(Lm.model.parameters(), lr=1e-5)
+            Lm.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(Lm.optimizer, T_max=epochs-3)
         train_loss = Lm.train()
         eval_loss, eval_accuracy = Lm.evaluate()
         Lm.scheduler.step()
@@ -188,8 +199,8 @@ def main(d="cuda"):
             f"eval loss {eval_loss}, eval acc {eval_accuracy}"
         )
 
-        if eval_accuracy > best_eval_acc:
-            best_eval_acc = eval_accuracy
+        if eval_loss < best_eval_loss:
+            best_eval_loss = eval_loss
             torch.save(Lm.model.state_dict(), best_model_path)
             print(
                 f"saved best model (val loss={eval_loss:.4f}  val acc={eval_accuracy:.3f})"

@@ -6,7 +6,7 @@ from torchvision import models, transforms
 from LM import LearningMachine
 from LM import val_tfms
 
-device = "mps"
+device = "cuda"
 
 model = LearningMachine(device, False, val_trsf=val_tfms, path="best_model.pt")
 print("Модель готова к предикту")
@@ -16,8 +16,8 @@ def analyze_photo(filename):
     preds = model.predict(filename)
     if preds[0] > preds[1]:
         x = preds[0]
-        return 20000 * x - 10000
+        return round(20000 * x - 10000)
     else:
         x = preds[1]
-        return -(20000 * x - 10000)
+        return -round(20000 * x - 10000)
 

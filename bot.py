@@ -17,14 +17,43 @@ from telegram import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
     ReplyKeyboardMarkup,
+    KeyboardButton,
 )
 from telegram.ext import CallbackQueryHandler
 
 from sqlite_handler import DataBase
+from collections import OrderedDict
 
-search_queue = []
+search_queue = OrderedDict()
 active_battles = {}
 user_to_battle = {}
+
+main_keyboard = ReplyKeyboardMarkup(
+    [[KeyboardButton("Поиск игроков")]],
+    resize_keyboard=True,
+    is_persistent=True,
+)
+
+cancel_button = KeyboardButton("Отмена")
+
+play_again_button = KeyboardButton("Сыграть еще раз")
+
+back_to_menu_button = KeyboardButton("Главное меню")
+
+# class Timer:
+#     def __init__(self, duration, callback):
+#         self.callback = callback
+#         self.duration = duration
+#         self.task = asyncio.create_task(start())
+
+#     async def start(self):
+#         await asyncio.sleep(self.duration)
+#         await self.callback
+
+#     def cancel(self):
+#         if self.task and not self.task.done():
+#             self.task.cancel()
+
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -39,18 +68,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not exist:
         print(f"Создаю нового пользователя {name} - {user_id}")
         await db.new_user(str(user_id), name)
-    # keyboard = [
-    #         [
-    #             InlineKeyboardButton("Поиск жертвы", callback_data="search_round"),
-    #             InlineKeyboardButton("ХЗ", callback_data="reset_aura")
-    #         ]
-    #     ]
-    #     # Оборачиваем кнопки в разметку
-    # reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    # await update.message.reply_text(
+    #     """Скинь фотку на оценку ауры или нажми на кнопку\n[Поиск игроков], чтобы сразиться с другими игроками""",
+    #     reply_markup=main_keyboard,
+    # )
     await update.message.reply_text(
         f"Привет, {name}! 👋\n\n"
         "Я бот для оценки ауры фотографий.\n"
-        "Отправь мне фотографию, и я её проанализирую!"
+        "Скинь фотку на оценку ауры или нажми на кнопку\n[Поиск игроков], чтобы сразиться с другими игроками",
+        reply_markup=main_keyboard,
     )
 
 
@@ -63,10 +89,18 @@ async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await file.download_to_drive(filename)
     try:
         result = await asyncio.to_thread(analyze_photo, filename)
+        if result >= 5000:
+            reaction = "💀🥶💀"
+        elif 0 < result < 5000:
+            reaction = "😎"
+        elif -5000 < result <= 0:
+            reaction = "😒"
+        else:
+            reaction = "💩💩💩"
         if user_id in user_to_battle:
             battle_id = user_to_battle[user_id]
             battle = active_battles[battle_id]
-            # Записываем результат тому игроку, чей это id
+
             if battle["u1"] == user_id:
                 battle["score1"] = result
                 battle["ph1"] = filename
@@ -74,9 +108,7 @@ async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 battle["score2"] = result
                 battle["ph2"] = filename
 
-            # Проверяем, оба ли скинули фото
             if battle["score1"] is not None and battle["score2"] is not None:
-                # ОБА СДАЛИ! Подводим итоги
                 s1, s2 = battle["score1"], battle["score2"]
 
                 if s1 > s2:
@@ -89,50 +121,68 @@ async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg1 = f"Битва завершена!\nВаша аура: {s1}\nАура противника: {s2}\n\n{res1}"
                 msg2 = f"Битва завершена!\nВаша аура: {s2}\nАура противника: {s1}\n\n{res2}"
 
-                # Рассылаем результаты обоим
                 await context.bot.send_message(battle["chat1"], msg1)
                 await context.bot.send_message(battle["chat2"], msg2)
                 await context.bot.send_photo(
-                    battle["chat1"], battle["ph2"], caption="фото противника"
+                    battle["chat1"],
+                    battle["ph2"],
+                    caption="фото противника",
+                    reply_markup=ReplyKeyboardMarkup(
+                        [[cancel_button, play_again_button]]
+                    ), resize_keyboard=True
                 )
                 await context.bot.send_photo(
-                    battle["chat2"], battle["ph1"], caption="фото противника"
+                    battle["chat2"],
+                    battle["ph1"],
+                    caption="фото противника",
+                    reply_markup=ReplyKeyboardMarkup(
+                        [[cancel_button, play_again_button]]
+                    ), resize_keyboard=True
                 )
-                # Очищаем батл из памяти
+                await db.set_user_status(battle["u1"], 0)
+                await db.set_user_status(battle["u2"], 0)
+
                 del user_to_battle[battle["u1"]]
                 del user_to_battle[battle["u2"]]
                 del active_battles[battle_id]
             else:
-                # Сдал только один, ждем второго
+                
                 await update.message.reply_text(
-                    f"✨ Твоя аура: {result}. Ожидаем фото от противника..."
+                    f"Твоя аура: {result} {reaction}. Ожидаем фото от противника..."
                 )
+        else:
+            await update.message.reply_text(f"Твоя аура: {result} {reaction}.")
     except Exception:
         await update.message.reply_text("❌ Не удалось проанализировать фотографию.")
         raise
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    print(query.data)
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    await query.answer()
 
-    if query.data == "search_round":
-        print(search_queue)
-        # Если пользователь уже в бою
-        if user_id in user_to_battle:
-            await query.edit_message_text("Вы уже находитесь в битве! Отправьте фото.")
+    text = update.message.text
+    print(text)
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
+
+    if text in ("Поиск игроков", "Сыграть еще раз"):
+        state = await db.get_user_state(user_id)
+
+        if state[0] == 2:
+            await update.message.reply_text(
+                "⚔️ Вы уже находитесь в битве! Отправьте фото.", reply_markup=cancel_button
+            )
             return
 
-        if any(user_id == u_id for u_id, _ in search_queue):
-            await query.edit_message_text("Вы уже в поиске... Ожидайте.")
+        if state[0] == 1:
+            await update.message.reply_text(
+                "⌛ Ты уже в поиске... Жди соперника.", reply_markup=cancel_button
+            )
             return
 
         if search_queue:
-            opponent_id, opp_chat_id = search_queue.pop(0)
-
+            opponent_id, opp_chat_id = search_queue.popitem(last=False)
+            await db.set_user_status(user_id, 2)
+            await db.set_user_status(opponent_id, 2)
             battle_id = uuid4().hex
             active_battles[battle_id] = {
                 "u1": opponent_id,
@@ -142,33 +192,60 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "chat2": chat_id,
                 "score2": None,
             }
+            user_chat = await context.bot.get_chat(user_id)
+            opp_chat = await context.bot.get_chat(opponent_id)
 
             user_to_battle[opponent_id] = battle_id
             user_to_battle[user_id] = battle_id
             await context.bot.send_message(
-                opp_chat_id, "⚔️ Противник найден! Скорее отправляй фото!"
+                opp_chat_id,
+                f"⚔️ Противник {user_chat.first_name} aka @{user_chat.username} найден! Скорее отправляй фото!",
+                reply_markup=ReplyKeyboardMarkup([[cancel_button]]), resize_keyboard=True
             )
-            await query.edit_message_text("⚔️ Противник найден! Скорее отправляй фото!")
+            await update.message.reply_text(
+                f"⚔️ Противник {opp_chat.first_name} aka {opp_chat.username} найден! Скорее отправляй фото!",
+                reply_markup=ReplyKeyboardMarkup([[cancel_button]]), resize_keyboard=True
+            )
         else:
-            # Если очередь пуста, встаем в нее
-            search_queue.append((user_id, chat_id))
-            await query.edit_message_text("🔍 Поиск противника... Ожидайте.")
-
-
-async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем список с рядами кнопок
-    keyboard = [
-        [
-            InlineKeyboardButton("Поиск жертвы", callback_data="search_round"),
-            InlineKeyboardButton("ХЗ", callback_data="reset_aura"),
-        ]
-    ]
-    # Оборачиваем кнопки в разметку
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        "Настройки пользователя. Выберите действие:", reply_markup=reply_markup
-    )
+            await db.set_user_status(user_id, 1)
+            search_queue[user_id] = chat_id
+            await update.message.reply_text(
+                "⌛ Поиск противника... Ожидайте.",
+                reply_markup=ReplyKeyboardMarkup([[cancel_button]], resize_keyboard=True,
+                    is_persistent=True)
+            )
+    if text == "Отмена":
+        state = await db.get_user_state(user_id)
+        print(state)
+        if state[0] == 1:
+            await update.message.reply_text("❌ Поиск отменен", reply_markup=main_keyboard)
+            del search_queue[user_id]
+        elif state[0] == 2:
+            battle_id = user_to_battle.pop(user_id)
+            current_battle = active_battles[battle_id]
+            opponent_chat_id = (
+                current_battle["chat1"]
+                if current_battle["chat1"] != user_id
+                else current_battle["chat2"]
+            )
+            opp_id = (
+                current_battle["u1"]
+                if current_battle["u1"] != user_id
+                else current_battle["u2"]
+            )
+            await db.set_user_status(opp_id, 0)
+            await update.message.reply_text("❌ Матч отменен", reply_markup=main_keyboard)
+            await context.bot.send_message(
+                opponent_chat_id, "❌ Противник отменил матч", reply_markup=main_keyboard
+            )
+            del current_battle
+            del user_to_battle[opp_id]
+        await db.set_user_status(user_id, 0)
+    if text == "Главное меню":
+        await update.message.reply_text(
+            """Скинь фотку на оценку ауры или нажми на кнопку\n[Поиск игроков], чтобы сразиться с другими игроками""",
+            reply_markup=main_keyboard,
+        )
 
 
 if not TOKEN:
@@ -189,9 +266,8 @@ if __name__ == "__main__":
         .read_timeout(30.0)
         .build()
     )
-
+    asyncio.run(db.update_users())
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO, photo))
-    app.add_handler(CommandHandler("battle", settings))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, button_handler))
     app.run_polling()
