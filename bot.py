@@ -29,7 +29,7 @@ active_battles = {}
 user_to_battle = {}
 
 main_keyboard = ReplyKeyboardMarkup(
-    [[KeyboardButton("Поиск игроков")]],
+    [[KeyboardButton("Поиск игроков"), KeyboardButton("Счётчик ауры")]],
     resize_keyboard=True,
     is_persistent=True,
 )
@@ -128,17 +128,19 @@ async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     battle["ph2"],
                     caption="фото противника",
                     reply_markup=ReplyKeyboardMarkup(
-                        [[cancel_button, play_again_button]]
-                    ), resize_keyboard=True
+                        [[play_again_button, back_to_menu_button]], resize_keyboard=True
+                    ), 
                 )
                 await context.bot.send_photo(
                     battle["chat2"],
                     battle["ph1"],
                     caption="фото противника",
                     reply_markup=ReplyKeyboardMarkup(
-                        [[cancel_button, play_again_button]]
-                    ), resize_keyboard=True
+                        [[play_again_button, back_to_menu_button]], resize_keyboard=True
+                    ), 
                 )
+                await db.set_score(battle["u1"], battle["score1"])
+                await db.set_score(battle["u2"], battle["score2"])
                 await db.set_user_status(battle["u1"], 0)
                 await db.set_user_status(battle["u2"], 0)
 
@@ -152,6 +154,7 @@ async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
         else:
             await update.message.reply_text(f"Твоя аура: {result} {reaction}.")
+            await db.set_score(user_id, result)
     except Exception:
         await update.message.reply_text("❌ Не удалось проанализировать фотографию.")
         raise
@@ -200,11 +203,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 opp_chat_id,
                 f"⚔️ Противник {user_chat.first_name} aka @{user_chat.username} найден! Скорее отправляй фото!",
-                reply_markup=ReplyKeyboardMarkup([[cancel_button]]), resize_keyboard=True
+                reply_markup=ReplyKeyboardMarkup([[cancel_button]], resize_keyboard=True),
             )
             await update.message.reply_text(
-                f"⚔️ Противник {opp_chat.first_name} aka {opp_chat.username} найден! Скорее отправляй фото!",
-                reply_markup=ReplyKeyboardMarkup([[cancel_button]]), resize_keyboard=True
+                f"⚔️ Противник {opp_chat.first_name} aka @{opp_chat.username} найден! Скорее отправляй фото!",
+                reply_markup=ReplyKeyboardMarkup([[cancel_button]], resize_keyboard=True)
             )
         else:
             await db.set_user_status(user_id, 1)
@@ -212,7 +215,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 "⌛ Поиск противника... Ожидайте.",
                 reply_markup=ReplyKeyboardMarkup([[cancel_button]], resize_keyboard=True,
-                    is_persistent=True)
+                    )
             )
     if text == "Отмена":
         state = await db.get_user_state(user_id)
@@ -240,13 +243,27 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             del current_battle
             del user_to_battle[opp_id]
+        else:
+            await update.message.reply_text(
+                """Скинь фотку на оценку ауры или нажми на кнопку\n[Поиск игроков], чтобы сразиться с другими игроками""",
+                reply_markup=main_keyboard,
+            )
         await db.set_user_status(user_id, 0)
     if text == "Главное меню":
-        await update.message.reply_text(
-            """Скинь фотку на оценку ауры или нажми на кнопку\n[Поиск игроков], чтобы сразиться с другими игроками""",
-            reply_markup=main_keyboard,
-        )
+        state = await db.get_user_state(user_id)
+        if state[0] == 0:
+            await update.message.reply_text(
+                """Скинь фотку на оценку ауры или нажми на кнопку\n[Поиск игроков], чтобы сразиться с другими игроками""",
+                reply_markup=main_keyboard,
+            )
+    if text == "Счётчик ауры":
+        print("a")
+        state = await db.get_user_state(user_id)
+        if state[0] == 0:
 
+            score = await db.get_user_score(user_id)
+            if score:
+                await update.message.reply_text(f"Твоя итоговая аура: {score[0]}")
 
 if not TOKEN:
     raise RuntimeError("Не найден BOT_TOKEN в файле .env")

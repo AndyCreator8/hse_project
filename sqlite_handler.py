@@ -54,6 +54,14 @@ class DataBase():
             await db.execute(f"UPDATE users SET state = {state} WHERE id = {user_id}")
             await db.commit()
 
+    async def get_user_score(self, user_id):
+        async with aiosqlite.connect("tgbot.db") as db:
+             async with db.execute(f'''SELECT score FROM users WHERE id = {user_id}''') as cur:
+                name = await cur.fetchone()
+                if name:
+                    return name
+                return None
+
 
     async def get_users_ready_for_battle(self):
         async with aiosqlite.connect("tgbot.db") as db:
