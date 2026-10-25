@@ -29,47 +29,41 @@ class DataBase():
 
 
     async def delete_user(self, user_id):
-        async with aiosqlite.connect('tgbot.db') as db:
-            await db.execute(f'DELETE FROM users WHERE id = {user_id}')
-            await db.commit()
+        async with self.pool.execute(f'DELETE FROM users WHERE id = {user_id}'):
+            await self.pool.commit()
 
 
     async def set_score(self, user_id, score):
-        print("Устанавливаю счет")
-        async with aiosqlite.connect("tgbot.db") as db:
-            await db.execute(
-                "UPDATE users SET score = score + ? WHERE id = ?", (score, user_id))
-            await db.commit()     
+        async with self.pool.execute("UPDATE users SET score = score + ? WHERE id = ?", (score, user_id)):
+            await self.pool.commit()     
+
 
     async def get_user(self, user_id):
-        async with aiosqlite.connect("tgbot.db") as db:
-            async with db.execute(f'''SELECT name, score, state FROM users WHERE id = {user_id}''') as cur:
-                name = await cur.fetchone()
-                if name:
-                    return name
-                return None
+        async with self.pool.execute(f'''SELECT name, score, state FROM users WHERE id = {user_id}''') as cur:
+            name = await cur.fetchone()
+            if name:
+                await self.set_user_status(user_id, 0)
+                return name
+            return None
 
     async def set_user_status(self, user_id, state):
-        async with aiosqlite.connect("tgbot.db") as db:
-            await db.execute(f"UPDATE users SET state = {state} WHERE id = {user_id}")
-            await db.commit()
+        print('a')
+        async with self.pool.execute(f"UPDATE users SET state = {state} WHERE id = {user_id}"):
+            await self.pool.commit()
 
     async def get_user_score(self, user_id):
-        async with aiosqlite.connect("tgbot.db") as db:
-             async with db.execute(f'''SELECT score FROM users WHERE id = {user_id}''') as cur:
-                name = await cur.fetchone()
-                if name:
-                    return name
-                return None
+        async with self.pool.execute(f'''SELECT score FROM users WHERE id = {user_id}''') as cur:
+            name = await cur.fetchone()
+            if name:
+                return name
+            return None
 
 
     async def get_users_ready_for_battle(self):
-        async with aiosqlite.connect("tgbot.db") as db:
-                async with db.execute(f'''SELECT name, score, state FROM users WHERE state = ?''', (1, )) as cur:
-                    return await cur.fetchall()
+        async with self.pool.execute(f'''SELECT name, score, state FROM users WHERE state = ?''', (1, )) as cur:
+            return await cur.fetchall()
 
     async def get_user_state(self, user_id):
-        async with aiosqlite.connect("tgbot.db") as db:
-            async with db.execute(f'''SELECT state FROM users WHERE id = ?''', (user_id, )) as cur:
-                return await cur.fetchone()
+        async with self.pool.execute(f'''SELECT state FROM users WHERE id = ?''', (user_id, )) as cur:
+            return await cur.fetchone()
 
