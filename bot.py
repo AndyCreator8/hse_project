@@ -40,26 +40,12 @@ play_again_button = KeyboardButton("Сыграть еще раз")
 
 back_to_menu_button = KeyboardButton("Главное меню")
 
-# class Timer:
-#     def __init__(self, duration, callback):
-#         self.callback = callback
-#         self.duration = duration
-#         self.task = asyncio.create_task(start())
-
-#     async def start(self):
-#         await asyncio.sleep(self.duration)
-#         await self.callback
-
-#     def cancel(self):
-#         if self.task and not self.task.done():
-#             self.task.cancel()
-
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 PHOTO_DIR = Path("photos")
 PHOTO_DIR.mkdir(exist_ok=True)
-
+PHOTO = object()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name
@@ -80,23 +66,69 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def check_if_user_sent_photo(user_id):
+    battle = active_battles[user_to_battle[user_id]]
+    if battle["u1"] == user_id:
+        return battle["score1"], battle["score2"]
+    else:
+        return battle["score2"], battle["score1"]
+
+async def get_photo(picture):
+    file = await picture.get_file()
+    await file.download_to_drive(filename)
+    filename = PHOTO_DIR / f"{uuid4().hex}.jpg"
+    result = await asyncio.to_thread(analyze_photo, filename)
+    if result >= 5000:
+        reaction = "💀🥶💀"
+    elif 0 < result < 5000:
+        reaction = "😎"
+    elif -5000 < result <= 0:
+        reaction = "😒"
+    else:
+        reaction = "💩💩💩"
+    return result, reaction, filename
+
 async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    await update.message.reply_text("📸 Фотография получена!\n🔍 Анализируем ауру...")
-    picture = update.message.photo[-1]
-    file = await picture.get_file()
-    filename = PHOTO_DIR / f"{uuid4().hex}.jpg"
-    await file.download_to_drive(filename)
-    try:
-        result = await asyncio.to_thread(analyze_photo, filename)
-        if result >= 5000:
-            reaction = "💀🥶💀"
-        elif 0 < result < 5000:
-            reaction = "😎"
-        elif -5000 < result <= 0:
-            reaction = "😒"
+    state = db.get_user_state(user_id)
+    if state in (0, 3):
+        if state == 3:
+            _in_battle = check_if_user_sent_photo(user_id)
+            if _in_battle == (None, None):
+                picture = update.message.photo[-2]
+                try:
+                    result, reaction, filename = await get_photo(picture)
+                except Exception as ex:
+                    print(ex)
+                    await update.message.reply_text("❌ Не удалось проанализировать фотографию. Отправь еще раз")
+                    return
+                await update.message.reply_text("📸 Фотография получена!\n Ждём фотки противника...")
+                battle_id = user_to_battle[user_id]
+                battle = active_battles[battle_id]
+                if battle["u1"] == user_id:
+                    battle["score1"] = result
+                    battle["ph1"] = filename
+                else:
+                    battle["score2"] = result
+                    battle["ph2"] = filename
+            elif battle["score1"] is not None and battle["score2"] is not None:
+
+
+
+
+
+                
         else:
-            reaction = "💩💩💩"
+            await update.message.reply_text("📸 Фотография получена!\n🔍 Анализируем ауру...")
+            picture = update.message.photo[-2]
+            result, reaction, _ = await get_photo(picture)
+            await update.message.reply_text(
+                    f"Твоя аура: {result} {reaction}."
+                )
+    
+    
+    try:
+        
         if user_id in user_to_battle:
             battle_id = user_to_battle[user_id]
             battle = active_battles[battle_id]
@@ -268,23 +300,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if not TOKEN:
     raise RuntimeError("Не найден BOT_TOKEN в файле .env")
 
+async def post_init():
+    await db.connect()
+    await db.update_users()
+
+async def post_shutdown():
+    await db.close()
 
 if __name__ == "__main__":
     db = DataBase("tgbot.db")
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(db.connect())
 
     app = (
         ApplicationBuilder()
         .token(TOKEN)
         .connect_timeout(30.0)
         .read_timeout(30.0)
+        .concurrent_updates(True)
+        .post_init(post_init)
+        .post_shutdown(post_shutdown)
         .build()
     )
-    asyncio.run(db.update_users())
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO, photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, button_handler))
+
     app.run_polling()
+ 
